@@ -9,12 +9,10 @@ class FileNameContent {
   FileNameContent(this.path, this.content);
 
   Future save() async {
+    final typeGroup = XTypeGroup(label: 'Safe Write', extensions: ['safe']);
     if (path.isEmpty) {
-      path = await getSavePath() ?? "";
+      path = await getSavePath(acceptedTypeGroups: [typeGroup]) ?? "";
       if (path.isEmpty) return;
-      if (!path.endsWith(".safe")) {
-        path = "$path.safe";
-      }
     }
     final data = Uint8List.fromList(utf8.encode(content));
     final mimeType = "text/plain";

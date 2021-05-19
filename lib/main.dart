@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -44,6 +45,10 @@ class _MainState extends State<Main> {
   String? _errorText;
   final _defaultFontSize = 18;
 
+  Timer? _timer;
+  Timer? _periodicTimer;
+  int? _lastTimerRefreshSecond;
+
   bool _enableOutsideEditingAreaScroll = true;
   bool _enableEditingAreaScroll = true;
 
@@ -58,6 +63,7 @@ class _MainState extends State<Main> {
       if (!(_editTitleFocusNode?.hasFocus ?? false)) {
         _completeEditTitle(_editTitleController?.text ?? "");
       }
+      _refreshCountDownTimer();
     });
     _editingAreaScrollController = ScrollController();
     _leftsideScrollController = ScrollController();
@@ -67,6 +73,7 @@ class _MainState extends State<Main> {
     });
     _editorController?.addListener(() {
       _plaintext?.passages[selected].content = _editorController?.text ?? "";
+      _refreshCountDownTimer();
     });
   }
 
@@ -99,6 +106,15 @@ class _MainState extends State<Main> {
           Container(
             width: 300,
             child: TextField(
+              onSubmitted: (value) {
+                if (_passwordController?.text.isNotEmpty ?? false) {
+                  if (_content == null) {
+                    _onClickNew();
+                  } else {
+                    _onClickOpen();
+                  }
+                }
+              },
               controller: _passwordController,
               decoration: InputDecoration(
                 hintText: "Password",
@@ -116,45 +132,51 @@ class _MainState extends State<Main> {
                       (_content == null)
                   ? null
                   : () async {
-                      _password = _passwordController?.text;
-                      _plaintext =
-                          await fromCiphertext(_content?.content, _password);
-                      if (_plaintext == null) {
-                        setState(() {
-                          _errorText = "Wrong password";
-                        });
-                        return;
-                      }
-                      selected = 0;
-                      _editorController?.text =
-                          _plaintext?.passages[selected].content ?? "";
-                      _passwordController?.text = "";
-                      setState(() {});
+                      _onClickOpen();
                     }),
           OutlinedButton(
               child: Text("New"),
               onPressed: _passwordController?.text.isEmpty ?? true
                   ? null
                   : () async {
-                      _password = _passwordController?.text;
-                      if (_password == null || _password!.isEmpty) {
-                        return;
-                      }
-                      _plaintext = Plaintext([
-                        Passage("Untitled", ""),
-                      ]);
-                      _content = FileNameContent(
-                          "", await _plaintext!.encrypt(_password!) ?? "");
-                      selected = 0;
-                      _editorController?.text =
-                          _plaintext?.passages[selected].content ?? "";
-                      _passwordController?.text = "";
-                      setState(() {});
+                      _onClickNew();
                     }),
         ],
       ),
       Container(height: MediaQuery.of(context).size.height / 6)
     ]));
+  }
+
+  void _onClickOpen() async {
+    _password = _passwordController?.text;
+    _plaintext = await fromCiphertext(_content?.content, _password);
+    if (_plaintext == null) {
+      setState(() {
+        _errorText = "Wrong password";
+      });
+      return;
+    }
+    selected = 0;
+    _editorController?.text = _plaintext?.passages[selected].content ?? "";
+    _passwordController?.text = "";
+    _refreshCountDownTimer();
+    setState(() {});
+  }
+
+  void _onClickNew() async {
+    _password = _passwordController?.text;
+    if (_password == null || _password!.isEmpty) {
+      return;
+    }
+    _plaintext = Plaintext([
+      Passage("Untitled", ""),
+    ]);
+    _content = FileNameContent("", await _plaintext!.encrypt(_password!) ?? "");
+    selected = 0;
+    _editorController?.text = _plaintext?.passages[selected].content ?? "";
+    _passwordController?.text = "";
+    _refreshCountDownTimer();
+    setState(() {});
   }
 
   Widget _buildEditScreen() {
@@ -172,9 +194,40 @@ class _MainState extends State<Main> {
             Expanded(
               child: Scrollbar(
                 controller: _leftsideScrollController,
-                child: ListView.builder(
-                    controller: _leftsideScrollController,
-                    itemCount: _plaintext?.passages.length,
+                child: ReorderableListView.builder(
+                    onReorder: (from, to) {
+                      // from is the index of the dragged item
+                      // to is the target index
+                      // if dragged down, to is the target index plus one
+                      Passage tmp = _plaintext!.passages[from];
+                      int resultSelected = selected;
+                      if (from < to) {
+                        for (int i = from; i < to - 1; i++) {
+                          _plaintext!.passages[i] = _plaintext!.passages[i + 1];
+                          if (selected == i + 1) {
+                            resultSelected = i;
+                          }
+                        }
+                        if (selected == from) {
+                          resultSelected = to - 1;
+                        }
+                        _plaintext!.passages[to - 1] = tmp;
+                      } else {
+                        for (int i = from; i > to; i--) {
+                          _plaintext!.passages[i] = _plaintext!.passages[i - 1];
+                          if (selected == i - 1) {
+                            resultSelected = i;
+                          }
+                        }
+                        _plaintext!.passages[to] = tmp;
+                        if (selected == from) {
+                          resultSelected = to;
+                        }
+                      }
+                      selected = resultSelected;
+                    },
+                    scrollController: _leftsideScrollController,
+                    itemCount: _plaintext?.passages.length ?? 0,
                     itemBuilder: _listItemBuilder),
               ),
             ),
@@ -185,6 +238,7 @@ class _MainState extends State<Main> {
                     onPressed: () {
                       _plaintext?.passages.add(Passage("Untitled", ""));
                       selected = (_plaintext?.passages.length ?? 1) - 1;
+                      _refreshCountDownTimer();
                       setState(() {});
                     }),
                 TextButton(
@@ -198,42 +252,49 @@ class _MainState extends State<Main> {
                         selected = (_plaintext?.passages.length ?? 1) - 1;
                       }
                       onSelect(selected);
+                      _refreshCountDownTimer();
                     }),
-                TextButton(
-                  child: Text("Help"),
-                  onPressed: () {
-                    showDialog(
-                        context: context,
-                        builder: (context) {
-                          return AlertDialog(
-                            title: Text("Help"),
-                            content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text("Save: Cmd + S"),
-                                  Text("Lock: Cmd + L"),
-                                  Text("Bigger: Cmd + Up"),
-                                  Text("Smaller: Cmd + Down"),
-                                ]),
-                          );
-                        });
-                  },
-                )
+                _buildHelpButton(),
               ],
-            )
+            ),
           ],
         ));
   }
 
+  Widget _buildHelpButton() {
+    return TextButton(
+      child: Text("Help"),
+      onPressed: () {
+        _refreshCountDownTimer();
+        showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: Text("Help"),
+                content: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text("Save: Cmd + S"),
+                  Text("Lock: Cmd + L"),
+                  Text("Bigger: Cmd + Up"),
+                  Text("Smaller: Cmd + Down"),
+                ]),
+              );
+            });
+      },
+    );
+  }
+
   Widget _listItemBuilder(BuildContext context, int index) {
     return GestureDetector(
+      key: Key("$index"),
       onTap: () {
+        _refreshCountDownTimer();
         if (_editTitle) {
           _completeEditTitle(_editTitleController?.text ?? "Untitled");
         }
         onSelect(index);
       },
       onDoubleTap: () {
+        _refreshCountDownTimer();
         if (_editTitle) {
           _completeEditTitle(_editTitleController?.text ?? "Untitled");
         }
@@ -259,7 +320,9 @@ class _MainState extends State<Main> {
                     border: OutlineInputBorder(),
                   ),
                 )
-              : Text(_plaintext?.passages[index].title ?? "")),
+              : Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(_plaintext?.passages[index].title ?? ""))),
     );
   }
 
@@ -292,13 +355,7 @@ class _MainState extends State<Main> {
           _content?.save();
         }),
         LockIntent: CallbackAction(onInvoke: (e) async {
-          _content?.content = await _plaintext!.encrypt(_password!) ?? "";
-          if (_content != null && _content!.path.isEmpty) {
-            _content!.path = "New File";
-          }
-          _plaintext = null;
-          _editorController?.text = "";
-          setState(() {});
+          onLock();
         }),
         IncreaseSizeIntent: CallbackAction(onInvoke: (e) async {
           _plaintext?.fontSize = min(_plaintext!.fontSize + 1, 60);
@@ -339,6 +396,17 @@ class _MainState extends State<Main> {
     });
   }
 
+  void onLock() async {
+    _content?.content = await _plaintext!.encrypt(_password!) ?? "";
+    if (_content != null && _content!.path.isEmpty) {
+      _content!.path = "New File";
+    }
+    _plaintext = null;
+    _editorController?.text = "";
+    _cancelTimer();
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -353,6 +421,33 @@ class _MainState extends State<Main> {
     _plaintext?.passages[selected].title = value;
     _editTitle = false;
     setState(() {});
+  }
+
+  void _refreshCountDownTimer() {
+    _timer?.cancel();
+    _timer = Timer(Duration(minutes: 1), () {
+      onLock();
+    });
+    _lastTimerRefreshSecond = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (_periodicTimer == null) {
+      _periodicTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+        final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        if (_lastTimerRefreshSecond != null) {
+          if (now > _lastTimerRefreshSecond! + 60) {
+            onLock();
+          }
+        } else {
+          _lastTimerRefreshSecond = now;
+        }
+      });
+    }
+  }
+
+  void _cancelTimer() {
+    _timer?.cancel();
+    _periodicTimer?.cancel();
+    _timer = null;
+    _periodicTimer = null;
   }
 }
 
