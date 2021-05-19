@@ -62,6 +62,18 @@ class Plaintext {
         passages.map((p) => p.toBase64()).join("|") + ":FontSize=$fontSize";
     return enc(plaintext, password);
   }
+
+  Future export() async {
+    final typeGroup = XTypeGroup(label: 'Markdown', extensions: ['md']);
+    final path = await getSavePath(acceptedTypeGroups: [typeGroup]) ?? "";
+    if (path.isEmpty) return;
+    final content =
+        passages.map((e) => "# ${e.title}\n\n${e.content}\n").join("\n");
+    final data = Uint8List.fromList(utf8.encode(content));
+    final mimeType = "text/plain";
+    final file = XFile.fromData(data, name: "name", mimeType: mimeType);
+    await file.saveTo(path);
+  }
 }
 
 Future<Plaintext?> fromCiphertext(String? ciphertext, String? password) async {

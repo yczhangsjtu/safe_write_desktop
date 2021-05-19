@@ -95,7 +95,7 @@ class _MainState extends State<Main> {
       TextButton(
         child: Text(_content?.path ?? "No File Selected"),
         onPressed: () async {
-          _content = await readCiphertext();
+          _content = await readCiphertext() ?? _content;
           setState(() {});
         },
       ),
@@ -255,6 +255,11 @@ class _MainState extends State<Main> {
                       _refreshCountDownTimer();
                     }),
                 _buildHelpButton(),
+                TextButton(
+                    child: Text("Export"),
+                    onPressed: () {
+                      _plaintext?.export();
+                    }),
               ],
             ),
           ],
@@ -277,6 +282,13 @@ class _MainState extends State<Main> {
                   Text("Bigger: Cmd + Up"),
                   Text("Smaller: Cmd + Down"),
                 ]),
+                actions: [
+                  TextButton(
+                      child: Text("OK"),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      })
+                ],
               );
             });
       },
@@ -352,7 +364,7 @@ class _MainState extends State<Main> {
       actions: {
         SaveIntent: CallbackAction(onInvoke: (e) async {
           _content?.content = await _plaintext!.encrypt(_password!) ?? "";
-          _content?.save();
+          await _content?.save();
         }),
         LockIntent: CallbackAction(onInvoke: (e) async {
           onLock();
