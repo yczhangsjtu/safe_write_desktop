@@ -238,8 +238,8 @@ class _MainState extends State<Main> {
                     onPressed: () {
                       _plaintext?.passages.add(Passage("Untitled", ""));
                       selected = (_plaintext?.passages.length ?? 1) - 1;
+                      onSelect(selected);
                       _refreshCountDownTimer();
-                      setState(() {});
                     }),
                 TextButton(
                     child: Text("Del"),
