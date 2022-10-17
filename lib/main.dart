@@ -14,9 +14,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Safe Writing',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData.dark().copyWith(
+          scrollbarTheme: ScrollbarThemeData().copyWith(
+        thumbColor: MaterialStateProperty.all(Colors.grey[500]),
+      )),
       home: Main(title: 'Safe Writing'),
     );
   }
@@ -89,62 +90,68 @@ class _MainState extends State<Main> {
   }
 
   Widget _buildLockScreen() {
-    return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.lock),
-      TextButton(
-        child: Text(_content?.path ?? "No File Selected"),
-        onPressed: () async {
-          _content = await readCiphertext() ?? _content;
-          setState(() {});
-        },
-      ),
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 300,
-            child: TextField(
-              onSubmitted: (value) {
-                if (_passwordController?.text.isNotEmpty ?? false) {
-                  if (_content == null) {
-                    _onClickNew();
-                  } else {
-                    _onClickOpen();
-                  }
-                }
-              },
-              controller: _passwordController,
-              decoration: InputDecoration(
-                hintText: "Password",
-                isCollapsed: true,
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.all(8.0),
-                errorText: _errorText,
-              ),
-              obscureText: true,
-            ),
-          ),
-          OutlinedButton(
-              child: Text("Open"),
-              onPressed: (_passwordController?.text.isEmpty ?? true) ||
-                      (_content == null)
-                  ? null
-                  : () async {
-                      _onClickOpen();
-                    }),
-          OutlinedButton(
-              child: Text("New"),
-              onPressed: _passwordController?.text.isEmpty ?? true
-                  ? null
-                  : () async {
+    return Container(
+      color: Colors.black,
+      child: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.lock, color: Colors.blue),
+        TextButton(
+          child: Text(_content?.path ?? "No File Selected"),
+          onPressed: () async {
+            _content = await readCiphertext() ?? _content;
+            setState(() {});
+          },
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 300,
+              child: TextField(
+                onSubmitted: (value) {
+                  if (_passwordController?.text.isNotEmpty ?? false) {
+                    if (_content == null) {
                       _onClickNew();
-                    }),
-        ],
-      ),
-      Container(height: MediaQuery.of(context).size.height / 6)
-    ]));
+                    } else {
+                      _onClickOpen();
+                    }
+                  }
+                },
+                controller: _passwordController,
+                decoration: InputDecoration(
+                  enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue)),
+                  hintText: "Password",
+                  isCollapsed: true,
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.all(8.0),
+                  errorText: _errorText,
+                ),
+                obscureText: true,
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            OutlinedButton(
+                child: Text("Open"),
+                onPressed: (_passwordController?.text.isEmpty ?? true) ||
+                        (_content == null)
+                    ? null
+                    : () async {
+                        _onClickOpen();
+                      }),
+            OutlinedButton(
+                child: Text("New"),
+                onPressed: _passwordController?.text.isEmpty ?? true
+                    ? null
+                    : () async {
+                        _onClickNew();
+                      }),
+          ],
+        ),
+        Container(height: MediaQuery.of(context).size.height / 6)
+      ])),
+    );
   }
 
   void _onClickOpen() async {
@@ -188,7 +195,7 @@ class _MainState extends State<Main> {
     return Container(
         width: MediaQuery.of(context).size.width / 6,
         height: MediaQuery.of(context).size.height,
-        color: Colors.lightBlue[100],
+        color: Colors.black87,
         child: Column(
           children: [
             Expanded(
@@ -260,6 +267,13 @@ class _MainState extends State<Main> {
                     onPressed: () {
                       _plaintext?.export();
                     }),
+                TextButton(
+                    child: Text("Save"),
+                    onPressed: () async {
+                      _content?.content =
+                          await _plaintext!.encrypt(_password!) ?? "";
+                      await _content?.save();
+                    }),
               ],
             ),
           ],
@@ -317,15 +331,18 @@ class _MainState extends State<Main> {
       },
       child: Container(
           padding: EdgeInsets.all(4.0),
-          color: selected == index ? Colors.lightBlue[200] : Colors.transparent,
+          color: selected == index
+              ? Color.fromARGB(137, 133, 133, 133)
+              : Colors.transparent,
           child: _editTitle && selected == index
               ? TextField(
+                  maxLines: null,
                   focusNode: _editTitleFocusNode,
                   onSubmitted: (value) {
                     _completeEditTitle(value);
                   },
-                  scrollPhysics: NeverScrollableScrollPhysics(),
                   controller: _editTitleController,
+                  style: TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     isCollapsed: true,
                     contentPadding: EdgeInsets.all(4.0),
@@ -334,14 +351,12 @@ class _MainState extends State<Main> {
                 )
               : Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(_plaintext?.passages[index].title ?? ""))),
+                  child: Text(_plaintext?.passages[index].title ?? "",
+                      style: TextStyle(color: Colors.white)))),
     );
   }
 
   Widget _buildEditingArea() {
-    // This part is problematic at the current version of Flutter (2.0.6)
-    // which does not handle the dragging very well
-    // Hard to select text
     return FocusableActionDetector(
       shortcuts: {
         LogicalKeySet(
@@ -380,23 +395,21 @@ class _MainState extends State<Main> {
       },
       child: Container(
         height: MediaQuery.of(context).size.height,
-        child: Scrollbar(
-          controller: _editingAreaScrollController,
-          child: TextField(
-              scrollPhysics: ClampingScrollPhysics(),
-              controller: _editorController,
-              expands: false,
-              scrollController: _editingAreaScrollController,
-              maxLines: null,
-              style: TextStyle(
-                  fontSize:
-                      (_plaintext?.fontSize ?? _defaultFontSize).toDouble()),
-              decoration: InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.all(16.0),
-              )),
-        ),
+        color: Colors.black,
+        child: TextField(
+            scrollPhysics: ClampingScrollPhysics(),
+            controller: _editorController,
+            expands: false,
+            scrollController: _editingAreaScrollController,
+            maxLines: null,
+            style: TextStyle(
+                fontSize: (_plaintext?.fontSize ?? _defaultFontSize).toDouble(),
+                color: Colors.white),
+            decoration: InputDecoration(
+              isCollapsed: true,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.all(16.0),
+            )),
       ),
     );
   }
@@ -409,7 +422,7 @@ class _MainState extends State<Main> {
   }
 
   void onLock() async {
-    _content?.content = await _plaintext!.encrypt(_password!) ?? "";
+    _content?.content = await _plaintext?.encrypt(_password!) ?? "";
     if (_content != null && _content!.path.isEmpty) {
       _content!.path = "New File";
     }
