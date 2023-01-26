@@ -64,7 +64,6 @@ Future<String?> dec(String? ciphertext, String? password) async {
   }
 }
 
-
 class Passage {
   String title;
   String content;
@@ -74,7 +73,6 @@ class Passage {
     return "${base64.encode(utf8.encode(title))}-${base64.encode(utf8.encode(content))}";
   }
 }
-
 
 class Plaintext {
   int fontSize;
@@ -88,19 +86,36 @@ class Plaintext {
   }
 }
 
-
 void main(List<String> arguments) async {
-  if(arguments.length < 1) {
+  if (arguments.length < 1) {
     print("Usage: dart run bin/cli.dart title");
     return;
   }
   var file = File('/tmp/pt');
   var data = await file.readAsString();
+  String title = arguments[0];
+  List<Passage> passages = [];
+  while (data.isNotEmpty) {
+    int next_title =
+        data.startsWith("## ") ? 0 : data.indexOf(RegExp(r'\n\n## .*\n\n'));
+    if (next_title < 0) {
+      passages.add(Passage(title, data));
+      break;
+    }
+    if (next_title == 0) {
+      title = data.split("\n")[0].substring(3);
+      data = data.substring(title.length + 3).trimLeft();
+      continue;
+    }
+    passages.add(Passage(title, data.substring(0, next_title)));
+    data = data.substring(next_title + 5);
+    title = data.split("\n")[0];
+    data = data.substring(title.length).trimLeft();
+  }
   print('Enter password: ');
   stdin.echoMode = false;
-  var password = stdin.readLineSync();  
-  var passage = Passage(arguments[0], data);
-  var plaintext = Plaintext([passage]);
+  var password = stdin.readLineSync();
+  var plaintext = Plaintext(passages);
   var ct = await plaintext.encrypt(password);
   var ctfile = File('/tmp/ct.safe');
   var wt = ctfile.openWrite();

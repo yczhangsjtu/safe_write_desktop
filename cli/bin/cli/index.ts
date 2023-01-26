@@ -25,12 +25,14 @@ function decrypt(password: string, data: string): string {
 
 
 if(process.argv.length < 4) {
-  console.log("Usage: npx ts-node index.ts path filename");
+  console.log("Usage: npx ts-node index.ts path filename [filename2 [...]]");
   process.exit(-1);
 }
 
 var path = process.argv[2];
-var filename = process.argv[3];
+var filenames = process.argv.slice(3);
+var include_plaintexts = process.env.SAFE_WRITE_PLAINTEXT;
+var renumber = process.env.SAFE_WRITE_RENUMBER;
 
 prompt.start();
 prompt.get({
@@ -44,18 +46,34 @@ prompt.get({
     console.log(`Error getting password: ${err}`);
     return;
   }
-  var data = fs.readFileSync(`${path}/${filename}.ipynb`).toString();
-  var nbdata = JSON.parse(data);
   var plaintext = "";
-  for(var i in nbdata.cells) {
-    var cell = nbdata.cells[i];
-    if(cell.cell_type == "markdown") {
-      var data = cell.source[0] as string;
-      if(data.startsWith("ciphertext:")) {
-        if(plaintext.length > 0) {
-          plaintext += "\n\n";
+  var count = 0;
+  for(var k = 0; k < filenames.length; k++) {
+    var filename = filenames[k];
+    var data = fs.readFileSync(`${path}/${filename}.ipynb`).toString();
+    var nbdata = JSON.parse(data);
+    for(var i in nbdata.cells) {
+      var cell = nbdata.cells[i];
+      if(cell.cell_type == "markdown") {
+        var data = cell.source[0] as string;
+        if(data.startsWith("ciphertext:")) {
+          if (renumber && !include_plaintexts) {
+            if(plaintext.length > 0) {
+              plaintext += "\n\n";
+            }
+            plaintext += `## ${count+1}`;
+            count += 1;
+          }
+          if(plaintext.length > 0) {
+            plaintext += "\n\n";
+          }
+          plaintext += decrypt(result.password as string, data.slice(11));
+        } else if (include_plaintexts) {
+          if(plaintext.length > 0) {
+            plaintext += "\n\n";
+          }
+          plaintext += data;
         }
-        plaintext += decrypt(result.password as string, data.slice(11));
       }
     }
   }
