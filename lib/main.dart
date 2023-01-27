@@ -274,6 +274,7 @@ class _MainState extends State<Main> {
                           await _plaintext!.encrypt(_password!) ?? "";
                       await _content?.save();
                     }),
+                TextButton(onPressed: onLock, child: Text("Lock"))
               ],
             ),
           ],
