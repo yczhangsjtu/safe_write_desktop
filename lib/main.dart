@@ -38,6 +38,7 @@ class _MainState extends State<Main> {
   TextEditingController? _editTitleController;
   TextEditingController? _editorController;
   FocusNode? _editTitleFocusNode;
+  FocusNode? _editBodyFocusNode;
   ScrollController? _editingAreaScrollController;
   ScrollController? _leftsideScrollController;
   String? _password;
@@ -66,6 +67,7 @@ class _MainState extends State<Main> {
       }
       _refreshCountDownTimer();
     });
+    _editBodyFocusNode = FocusNode();
     _editingAreaScrollController = ScrollController();
     _leftsideScrollController = ScrollController();
     _passwordController?.addListener(() {
@@ -84,6 +86,7 @@ class _MainState extends State<Main> {
     _editTitleController?.dispose();
     _editorController?.dispose();
     _editTitleFocusNode?.dispose();
+    _editBodyFocusNode?.dispose();
     _editingAreaScrollController?.dispose();
     _leftsideScrollController?.dispose();
     super.dispose();
@@ -187,8 +190,45 @@ class _MainState extends State<Main> {
   }
 
   Widget _buildEditScreen() {
-    return Row(
-        children: [_buildLeftSide(), Expanded(child: _buildEditingArea())]);
+    return FocusableActionDetector(
+      shortcuts: {
+        LogicalKeySet(
+          LogicalKeyboardKey.meta,
+          LogicalKeyboardKey.keyS,
+        ): SaveIntent(),
+        LogicalKeySet(
+          LogicalKeyboardKey.meta,
+          LogicalKeyboardKey.keyL,
+        ): LockIntent(),
+        LogicalKeySet(
+          LogicalKeyboardKey.meta,
+          LogicalKeyboardKey.arrowUp,
+        ): IncreaseSizeIntent(),
+        LogicalKeySet(
+          LogicalKeyboardKey.meta,
+          LogicalKeyboardKey.arrowDown,
+        ): DecreaseSizeIntent()
+      },
+      actions: {
+        SaveIntent: CallbackAction(onInvoke: (e) async {
+          _content?.content = await _plaintext!.encrypt(_password!) ?? "";
+          await _content?.save();
+        }),
+        LockIntent: CallbackAction(onInvoke: (e) async {
+          onLock();
+        }),
+        IncreaseSizeIntent: CallbackAction(onInvoke: (e) async {
+          _plaintext?.fontSize = min(_plaintext!.fontSize + 1, 60);
+          setState(() {});
+        }),
+        DecreaseSizeIntent: CallbackAction(onInvoke: (e) async {
+          _plaintext?.fontSize = max(_plaintext!.fontSize - 1, 12);
+          setState(() {});
+        }),
+      },
+      child: Row(
+          children: [_buildLeftSide(), Expanded(child: _buildEditingArea())]),
+    );
   }
 
   Widget _buildLeftSide() {
@@ -274,6 +314,7 @@ class _MainState extends State<Main> {
                       _content?.content =
                           await _plaintext!.encrypt(_password!) ?? "";
                       await _content?.save();
+                      _editBodyFocusNode?.requestFocus();
                     }),
                 TextButton(onPressed: onLock, child: Text("Lock"))
               ],
@@ -359,60 +400,24 @@ class _MainState extends State<Main> {
   }
 
   Widget _buildEditingArea() {
-    return FocusableActionDetector(
-      shortcuts: {
-        LogicalKeySet(
-          LogicalKeyboardKey.meta,
-          LogicalKeyboardKey.keyS,
-        ): SaveIntent(),
-        LogicalKeySet(
-          LogicalKeyboardKey.meta,
-          LogicalKeyboardKey.keyL,
-        ): LockIntent(),
-        LogicalKeySet(
-          LogicalKeyboardKey.meta,
-          LogicalKeyboardKey.arrowUp,
-        ): IncreaseSizeIntent(),
-        LogicalKeySet(
-          LogicalKeyboardKey.meta,
-          LogicalKeyboardKey.arrowDown,
-        ): DecreaseSizeIntent()
-      },
-      actions: {
-        SaveIntent: CallbackAction(onInvoke: (e) async {
-          _content?.content = await _plaintext!.encrypt(_password!) ?? "";
-          await _content?.save();
-        }),
-        LockIntent: CallbackAction(onInvoke: (e) async {
-          onLock();
-        }),
-        IncreaseSizeIntent: CallbackAction(onInvoke: (e) async {
-          _plaintext?.fontSize = min(_plaintext!.fontSize + 1, 60);
-          setState(() {});
-        }),
-        DecreaseSizeIntent: CallbackAction(onInvoke: (e) async {
-          _plaintext?.fontSize = max(_plaintext!.fontSize - 1, 12);
-          setState(() {});
-        }),
-      },
-      child: Container(
-        height: MediaQuery.of(context).size.height,
-        color: Colors.black,
-        child: TextField(
-            scrollPhysics: ClampingScrollPhysics(),
-            controller: _editorController,
-            expands: false,
-            scrollController: _editingAreaScrollController,
-            maxLines: null,
-            style: TextStyle(
-                fontSize: (_plaintext?.fontSize ?? _defaultFontSize).toDouble(),
-                color: Colors.white),
-            decoration: InputDecoration(
-              isCollapsed: true,
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.all(16.0),
-            )),
-      ),
+    return Container(
+      height: MediaQuery.of(context).size.height,
+      color: Colors.black,
+      child: TextField(
+          scrollPhysics: ClampingScrollPhysics(),
+          controller: _editorController,
+          expands: false,
+          focusNode: _editBodyFocusNode,
+          scrollController: _editingAreaScrollController,
+          maxLines: null,
+          style: TextStyle(
+              fontSize: (_plaintext?.fontSize ?? _defaultFontSize).toDouble(),
+              color: Colors.white),
+          decoration: InputDecoration(
+            isCollapsed: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.all(16.0),
+          )),
     );
   }
 

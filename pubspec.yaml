@@ -24,7 +24,7 @@ dependencies:
   flutter:
     sdk: flutter
   file_selector: ^0.8.0
-  file_selector_macos: ^0.0.3
+  file_selector_macos: ^0.9.0
   cryptography: ^2.0.1
   focus_detector: ^2.0.0
 
