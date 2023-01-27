@@ -243,8 +243,9 @@ class _MainState extends State<Main> {
                 TextButton(
                     child: Text("Add"),
                     onPressed: () {
-                      _plaintext?.passages.add(Passage("Untitled", ""));
-                      selected = (_plaintext?.passages.length ?? 1) - 1;
+                      _plaintext?.passages
+                          .insert(selected + 1, Passage("Untitled", ""));
+                      selected = selected + 1;
                       onSelect(selected);
                       _refreshCountDownTimer();
                     }),
