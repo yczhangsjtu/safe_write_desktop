@@ -44,6 +44,7 @@ class _MainState extends State<Main> {
   String? _password;
   int selected = 0;
   bool _editTitle = false;
+  String? _editTitleValue;
   String? _errorText;
   final _defaultFontSize = 18;
 
@@ -78,6 +79,7 @@ class _MainState extends State<Main> {
       _plaintext?.passages[selected].content = _editorController?.text ?? "";
       _refreshCountDownTimer();
     });
+    _editTitleValue = null;
   }
 
   @override
@@ -369,6 +371,7 @@ class _MainState extends State<Main> {
         }
         onSelect(index);
         _editTitle = true;
+        _editTitleValue = _plaintext?.passages[selected].title ?? "";
         _editTitleFocusNode?.requestFocus();
         _editTitleController?.text = _plaintext?.passages[selected].title ?? "";
       },
@@ -391,6 +394,26 @@ class _MainState extends State<Main> {
                     contentPadding: EdgeInsets.all(4.0),
                     border: OutlineInputBorder(),
                   ),
+                  onChanged: (value) {
+                    if (_editTitleValue != null) {
+                      if (_editTitleValue!.length == value.length - 1) {
+                        for (int i = 0; i < value.length; i++) {
+                          if (value[i] == '\n') {
+                            if (value.substring(i + 1) ==
+                                _editTitleValue!.substring(i)) {
+                              _completeEditTitle(_editTitleValue!);
+                              _editTitleValue = null;
+                              return;
+                            }
+                          } else if (i >= _editTitleValue!.length ||
+                              value[i] != _editTitleValue![i]) {
+                            break;
+                          }
+                        }
+                      }
+                    }
+                    _editTitleValue = value;
+                  },
                 )
               : Align(
                   alignment: Alignment.centerLeft,
