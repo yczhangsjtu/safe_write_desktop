@@ -73,8 +73,12 @@ class _MainState extends State<Main> {
       if (selected >= 0 && selected < _scrollPositions.length) {
         _scrollPositions[selected] = _editingAreaScrollController!.offset;
       }
+      _refreshCountDownTimer();
     });
     _leftsideScrollController = ScrollController();
+    _leftsideScrollController!.addListener(() {
+      _refreshCountDownTimer();
+    });
     _passwordController?.addListener(() {
       _errorText = null;
       setState(() {});
@@ -429,20 +433,24 @@ class _MainState extends State<Main> {
       height: MediaQuery.of(context).size.height,
       color: Colors.black,
       child: TextField(
-          scrollPhysics: ClampingScrollPhysics(),
-          controller: _editorController,
-          expands: false,
-          focusNode: _editBodyFocusNode,
-          scrollController: _editingAreaScrollController,
-          maxLines: null,
-          style: TextStyle(
-              fontSize: (_plaintext?.fontSize ?? _defaultFontSize).toDouble(),
-              color: Colors.white),
-          decoration: InputDecoration(
-            isCollapsed: true,
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.all(16.0),
-          )),
+        scrollPhysics: ClampingScrollPhysics(),
+        controller: _editorController,
+        expands: false,
+        focusNode: _editBodyFocusNode,
+        scrollController: _editingAreaScrollController,
+        maxLines: null,
+        style: TextStyle(
+            fontSize: (_plaintext?.fontSize ?? _defaultFontSize).toDouble(),
+            color: Colors.white),
+        decoration: InputDecoration(
+          isCollapsed: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.all(16.0),
+        ),
+        onTap: () {
+          _refreshCountDownTimer();
+        },
+      ),
     );
   }
 
