@@ -52,9 +52,6 @@ class _MainState extends State<Main> {
   Timer? _periodicTimer;
   int? _lastTimerRefreshSecond;
 
-  bool _enableOutsideEditingAreaScroll = true;
-  bool _enableEditingAreaScroll = true;
-
   @override
   void initState() {
     super.initState();
