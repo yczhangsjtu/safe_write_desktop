@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'storage.dart';
 
@@ -34,6 +35,7 @@ class Main extends StatefulWidget {
 class _MainState extends State<Main> {
   FileNameContent? _content;
   Plaintext? _plaintext;
+  List<double> _scrollPositions = [];
   TextEditingController? _passwordController;
   TextEditingController? _editTitleController;
   TextEditingController? _editorController;
@@ -67,6 +69,11 @@ class _MainState extends State<Main> {
     });
     _editBodyFocusNode = FocusNode();
     _editingAreaScrollController = ScrollController();
+    _editingAreaScrollController!.addListener(() {
+      if (selected >= 0 && selected < _scrollPositions.length) {
+        _scrollPositions[selected] = _editingAreaScrollController!.offset;
+      }
+    });
     _leftsideScrollController = ScrollController();
     _passwordController?.addListener(() {
       _errorText = null;
@@ -100,7 +107,12 @@ class _MainState extends State<Main> {
         TextButton(
           child: Text(_content?.path ?? "No File Selected"),
           onPressed: () async {
-            _content = await readCiphertext() ?? _content;
+            var newContent = await readCiphertext();
+            if (newContent != null) {
+              _content = newContent;
+              _scrollPositions = [];
+              selected = 0;
+            }
             setState(() {});
           },
         ),
@@ -165,11 +177,19 @@ class _MainState extends State<Main> {
       });
       return;
     }
-    selected = 0;
+    if (_scrollPositions.length != _plaintext!.passages.length) {
+      _scrollPositions =
+          List<double>.filled(_plaintext!.passages.length, 0, growable: true);
+    }
+    if (selected >= _plaintext!.passages.length) {
+      selected = 0;
+    }
     _editorController?.text = _plaintext?.passages[selected].content ?? "";
     _passwordController?.text = "";
     _refreshCountDownTimer();
-    setState(() {});
+    SchedulerBinding.instance.addPostFrameCallback((timestamp) {
+      onSelect(selected);
+    });
   }
 
   void _onClickNew() async {
@@ -180,6 +200,7 @@ class _MainState extends State<Main> {
     _plaintext = Plaintext([
       Passage("Untitled", ""),
     ]);
+    _scrollPositions = [0];
     _content = FileNameContent("", await _plaintext!.encrypt(_password!) ?? "");
     selected = 0;
     _editorController?.text = _plaintext?.passages[selected].content ?? "";
@@ -245,32 +266,13 @@ class _MainState extends State<Main> {
                       // from is the index of the dragged item
                       // to is the target index
                       // if dragged down, to is the target index plus one
-                      Passage tmp = _plaintext!.passages[from];
-                      int resultSelected = selected;
-                      if (from < to) {
-                        for (int i = from; i < to - 1; i++) {
-                          _plaintext!.passages[i] = _plaintext!.passages[i + 1];
-                          if (selected == i + 1) {
-                            resultSelected = i;
-                          }
-                        }
-                        if (selected == from) {
-                          resultSelected = to - 1;
-                        }
-                        _plaintext!.passages[to - 1] = tmp;
-                      } else {
-                        for (int i = from; i > to; i--) {
-                          _plaintext!.passages[i] = _plaintext!.passages[i - 1];
-                          if (selected == i - 1) {
-                            resultSelected = i;
-                          }
-                        }
-                        _plaintext!.passages[to] = tmp;
-                        if (selected == from) {
-                          resultSelected = to;
-                        }
-                      }
-                      selected = resultSelected;
+                      to = to > from ? to - 1 : to;
+                      _plaintext!.passages
+                          .insert(to, _plaintext!.passages.removeAt(from));
+                      _scrollPositions.insert(
+                          to, _scrollPositions.removeAt(from));
+                      selected = to;
+                      onSelect(selected);
                     },
                     scrollController: _leftsideScrollController,
                     itemCount: _plaintext?.passages.length ?? 0,
@@ -284,6 +286,7 @@ class _MainState extends State<Main> {
                     onPressed: () {
                       _plaintext?.passages
                           .insert(selected + 1, Passage("Untitled", ""));
+                      _scrollPositions.insert(selected + 1, 0);
                       selected = selected + 1;
                       onSelect(selected);
                       _refreshCountDownTimer();
@@ -292,8 +295,10 @@ class _MainState extends State<Main> {
                     child: Text("Del"),
                     onPressed: () {
                       _plaintext?.passages.removeAt(selected);
+                      _scrollPositions.removeAt(selected);
                       if (_plaintext?.passages.isEmpty ?? true) {
                         _plaintext?.passages = [Passage("Untitled", "")];
+                        _scrollPositions = [0];
                       }
                       if (selected >= (_plaintext?.passages.length ?? 0)) {
                         selected = (_plaintext?.passages.length ?? 1) - 1;
@@ -445,6 +450,7 @@ class _MainState extends State<Main> {
     setState(() {
       selected = index;
       _editorController?.text = _plaintext?.passages[index].content ?? "";
+      _editingAreaScrollController?.jumpTo(_scrollPositions[index]);
     });
   }
 
