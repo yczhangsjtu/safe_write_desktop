@@ -250,113 +250,154 @@ class _MainState extends State<Main> {
           setState(() {});
         }),
       },
-      child: Row(
-          children: [_buildLeftSide(), Expanded(child: _buildEditingArea())]),
+      child: Row(children: [
+        _buildLeftSide(),
+        Expanded(
+            child: Stack(children: [
+          _buildEditingArea(),
+          Align(
+            child: Column(
+              children: [
+                FloatingActionButton(
+                  onPressed: () {
+                    _plaintext?.export();
+                  },
+                  child: Icon(Icons.print),
+                  backgroundColor: Colors.limeAccent.withAlpha(50),
+                  hoverColor: Colors.limeAccent,
+                ),
+                Container(
+                  height: 10,
+                  width: 0,
+                ),
+                FloatingActionButton(
+                  onPressed: () {
+                    _refreshCountDownTimer();
+                    showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: Text("Help"),
+                            content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text("Save: Cmd + S"),
+                                  Text("Lock: Cmd + L"),
+                                  Text("Bigger: Cmd + Up"),
+                                  Text("Smaller: Cmd + Down"),
+                                ]),
+                            actions: [
+                              TextButton(
+                                  child: Text("OK"),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  })
+                            ],
+                          );
+                        });
+                  },
+                  child: Icon(Icons.question_mark),
+                  backgroundColor: Colors.amberAccent.withAlpha(50),
+                  hoverColor: Colors.amberAccent,
+                ),
+                Container(
+                  height: 10,
+                  width: 0,
+                ),
+                FloatingActionButton(
+                  onPressed: () {
+                    _plaintext?.passages.removeAt(selected);
+                    _scrollPositions.removeAt(selected);
+                    if (_plaintext?.passages.isEmpty ?? true) {
+                      _plaintext?.passages = [Passage("Untitled", "")];
+                      _scrollPositions = [0];
+                    }
+                    if (selected >= (_plaintext?.passages.length ?? 0)) {
+                      selected = (_plaintext?.passages.length ?? 1) - 1;
+                    }
+                    onSelect(selected);
+                    _refreshCountDownTimer();
+                  },
+                  child: Icon(Icons.delete),
+                  backgroundColor: Colors.redAccent.withAlpha(50),
+                  hoverColor: Colors.redAccent,
+                ),
+                Container(
+                  height: 10,
+                  width: 0,
+                ),
+                FloatingActionButton(
+                  onPressed: () {
+                    _plaintext?.passages
+                        .insert(selected + 1, Passage("Untitled", ""));
+                    _scrollPositions.insert(selected + 1, 0);
+                    selected = selected + 1;
+                    onSelect(selected);
+                    _refreshCountDownTimer();
+                  },
+                  child: Icon(Icons.add),
+                  backgroundColor: Colors.tealAccent.withAlpha(50),
+                  hoverColor: Colors.tealAccent,
+                ),
+                Container(
+                  height: 10,
+                  width: 0,
+                ),
+                FloatingActionButton(
+                  onPressed: onLock,
+                  child: Icon(Icons.lock),
+                  backgroundColor: Colors.greenAccent.withAlpha(50),
+                  hoverColor: Colors.greenAccent,
+                ),
+                Container(
+                  height: 10,
+                  width: 0,
+                ),
+                FloatingActionButton(
+                  onPressed: () async {
+                    _content?.content =
+                        await _plaintext!.encrypt(_password!) ?? "";
+                    await _content?.save();
+                    _editBodyFocusNode?.requestFocus();
+                    _refreshCountDownTimer();
+                  },
+                  child: Icon(Icons.save),
+                  backgroundColor: Colors.blueAccent.withAlpha(50),
+                  hoverColor: Colors.blueAccent,
+                ),
+              ],
+              mainAxisSize: MainAxisSize.min,
+            ),
+            alignment: Alignment(0.9, 0.9),
+          )
+        ]))
+      ]),
     );
   }
 
   Widget _buildLeftSide() {
     return Container(
-        width: MediaQuery.of(context).size.width / 6,
-        height: MediaQuery.of(context).size.height,
-        color: Colors.black87,
-        child: Column(
-          children: [
-            Expanded(
-              child: Scrollbar(
-                controller: _leftsideScrollController,
-                child: ReorderableListView.builder(
-                    onReorder: (from, to) {
-                      // from is the index of the dragged item
-                      // to is the target index
-                      // if dragged down, to is the target index plus one
-                      to = to > from ? to - 1 : to;
-                      _plaintext!.passages
-                          .insert(to, _plaintext!.passages.removeAt(from));
-                      _scrollPositions.insert(
-                          to, _scrollPositions.removeAt(from));
-                      selected = to;
-                      onSelect(selected);
-                    },
-                    scrollController: _leftsideScrollController,
-                    itemCount: _plaintext?.passages.length ?? 0,
-                    itemBuilder: _listItemBuilder),
-              ),
-            ),
-            Wrap(
-              children: [
-                TextButton(
-                    child: Text("Add"),
-                    onPressed: () {
-                      _plaintext?.passages
-                          .insert(selected + 1, Passage("Untitled", ""));
-                      _scrollPositions.insert(selected + 1, 0);
-                      selected = selected + 1;
-                      onSelect(selected);
-                      _refreshCountDownTimer();
-                    }),
-                TextButton(
-                    child: Text("Del"),
-                    onPressed: () {
-                      _plaintext?.passages.removeAt(selected);
-                      _scrollPositions.removeAt(selected);
-                      if (_plaintext?.passages.isEmpty ?? true) {
-                        _plaintext?.passages = [Passage("Untitled", "")];
-                        _scrollPositions = [0];
-                      }
-                      if (selected >= (_plaintext?.passages.length ?? 0)) {
-                        selected = (_plaintext?.passages.length ?? 1) - 1;
-                      }
-                      onSelect(selected);
-                      _refreshCountDownTimer();
-                    }),
-                _buildHelpButton(),
-                TextButton(
-                    child: Text("Export"),
-                    onPressed: () {
-                      _plaintext?.export();
-                    }),
-                TextButton(
-                    child: Text("Save"),
-                    onPressed: () async {
-                      _content?.content =
-                          await _plaintext!.encrypt(_password!) ?? "";
-                      await _content?.save();
-                      _editBodyFocusNode?.requestFocus();
-                    }),
-                TextButton(onPressed: onLock, child: Text("Lock"))
-              ],
-            ),
-          ],
-        ));
-  }
-
-  Widget _buildHelpButton() {
-    return TextButton(
-      child: Text("Help"),
-      onPressed: () {
-        _refreshCountDownTimer();
-        showDialog(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                title: Text("Help"),
-                content: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text("Save: Cmd + S"),
-                  Text("Lock: Cmd + L"),
-                  Text("Bigger: Cmd + Up"),
-                  Text("Smaller: Cmd + Down"),
-                ]),
-                actions: [
-                  TextButton(
-                      child: Text("OK"),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      })
-                ],
-              );
-            });
-      },
+      width: MediaQuery.of(context).size.width / 6,
+      height: MediaQuery.of(context).size.height,
+      color: Colors.black87,
+      child: Scrollbar(
+        controller: _leftsideScrollController,
+        child: ReorderableListView.builder(
+            onReorder: (from, to) {
+              // from is the index of the dragged item
+              // to is the target index
+              // if dragged down, to is the target index plus one
+              to = to > from ? to - 1 : to;
+              _plaintext!.passages
+                  .insert(to, _plaintext!.passages.removeAt(from));
+              _scrollPositions.insert(to, _scrollPositions.removeAt(from));
+              selected = to;
+              onSelect(selected);
+            },
+            scrollController: _leftsideScrollController,
+            itemCount: _plaintext?.passages.length ?? 0,
+            itemBuilder: _listItemBuilder),
+      ),
     );
   }
 
@@ -385,7 +426,7 @@ class _MainState extends State<Main> {
           padding: EdgeInsets.all(4.0),
           color: selected == index
               ? Color.fromARGB(137, 133, 133, 133)
-              : Colors.transparent,
+              : Color.fromARGB(255, 40, 40, 40),
           child: _editTitle && selected == index
               ? TextField(
                   maxLines: null,
