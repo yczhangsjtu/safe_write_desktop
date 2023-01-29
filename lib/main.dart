@@ -377,28 +377,39 @@ class _MainState extends State<Main> {
 
   Widget _buildLeftSide() {
     return Container(
-      width: MediaQuery.of(context).size.width / 6,
-      height: MediaQuery.of(context).size.height,
-      color: Colors.black87,
-      child: Scrollbar(
-        controller: _leftsideScrollController,
-        child: ReorderableListView.builder(
-            onReorder: (from, to) {
-              // from is the index of the dragged item
-              // to is the target index
-              // if dragged down, to is the target index plus one
-              to = to > from ? to - 1 : to;
-              _plaintext!.passages
-                  .insert(to, _plaintext!.passages.removeAt(from));
-              _scrollPositions.insert(to, _scrollPositions.removeAt(from));
-              selected = to;
-              onSelect(selected);
-            },
-            scrollController: _leftsideScrollController,
-            itemCount: _plaintext?.passages.length ?? 0,
-            itemBuilder: _listItemBuilder),
-      ),
-    );
+        width: MediaQuery.of(context).size.width / 6,
+        height: MediaQuery.of(context).size.height,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [
+              Colors.black12,
+              Colors.black,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(5),
+          child: Scrollbar(
+            controller: _leftsideScrollController,
+            child: ReorderableListView.builder(
+                onReorder: (from, to) {
+                  // from is the index of the dragged item
+                  // to is the target index
+                  // if dragged down, to is the target index plus one
+                  to = to > from ? to - 1 : to;
+                  _plaintext!.passages
+                      .insert(to, _plaintext!.passages.removeAt(from));
+                  _scrollPositions.insert(to, _scrollPositions.removeAt(from));
+                  selected = to;
+                  onSelect(selected);
+                },
+                scrollController: _leftsideScrollController,
+                itemCount: _plaintext?.passages.length ?? 0,
+                itemBuilder: _listItemBuilder),
+          ),
+        ));
   }
 
   Widget _listItemBuilder(BuildContext context, int index) {
@@ -424,9 +435,11 @@ class _MainState extends State<Main> {
       },
       child: Container(
           padding: EdgeInsets.all(4.0),
-          color: selected == index
-              ? Color.fromARGB(137, 133, 133, 133)
-              : Color.fromARGB(255, 40, 40, 40),
+          decoration: BoxDecoration(
+              color: selected == index
+                  ? Color.fromARGB(137, 133, 133, 133)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.all(Radius.circular(5))),
           child: _editTitle && selected == index
               ? TextField(
                   maxLines: null,
